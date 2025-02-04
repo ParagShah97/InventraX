@@ -1,0 +1,9 @@
+[submodule "ServiceRegistry"]
+	path = ServiceRegistry
+	url = https://github.com/ParagShah97/ServiceRegistry.git
+[submodule "OrderService"]
+	path = OrderService
+	url = https://github.com/ParagShah97/OrderService.git
+[submodule "ProductService"]
+	path = ProductService
+	url = https://github.com/ParagShah97/ProductService.git
