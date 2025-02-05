@@ -7,3 +7,6 @@
 [submodule "ProductService"]
 	path = ProductService
 	url = https://github.com/ParagShah97/ProductService.git
+[submodule "InventraxConfigServer"]
+	path = InventraxConfigServer
+	url = https://github.com/ParagShah97/InventraxConfigServer.git
