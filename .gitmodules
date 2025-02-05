@@ -10,3 +10,6 @@
 [submodule "InventraxConfigServer"]
 	path = InventraxConfigServer
 	url = https://github.com/ParagShah97/InventraxConfigServer.git
+[submodule "InventraXConfigData"]
+	path = InventraXConfigData
+	url = https://github.com/ParagShah97/InventraXConfigData.git
