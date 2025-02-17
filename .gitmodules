@@ -13,3 +13,6 @@
 [submodule "InventraXConfigData"]
 	path = InventraXConfigData
 	url = https://github.com/ParagShah97/InventraXConfigData.git
+[submodule "PaymentService"]
+	path = PaymentService
+	url = https://github.com/ParagShah97/PaymentService.git
