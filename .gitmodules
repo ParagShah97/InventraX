@@ -16,3 +16,6 @@
 [submodule "PaymentService"]
 	path = PaymentService
 	url = https://github.com/ParagShah97/PaymentService.git
+[submodule "APIGateway"]
+	path = APIGateway
+	url = https://github.com/ParagShah97/APIGateway.git
