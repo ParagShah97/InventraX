@@ -131,3 +131,130 @@ healthcheck:
 
 This README provides the necessary steps for containerizing and running services efficiently using Docker and Docker Compose.
 
+-------------------------------------------------------------------------------------------------------------------------------
+
+# Kubernetes Overview
+
+Kubernetes (K8s) is an open-source **container orchestration platform** that automates the **deployment**, **scaling**, and **management** of containerized applications. It helps manage clusters of hosts running containers in a highly efficient, resilient, and scalable manner.
+
+---
+
+## 🧱 Kubernetes Architecture
+
+Kubernetes architecture follows a **Master-Worker** model:
+
+```
+Master Node(s) <-----> Worker Node(s)
+```
+
+---
+
+## ⚙️ Master Node Components
+
+The **Master Node** is the control plane of the cluster and is responsible for managing the state of the cluster.
+
+### 🔗 `kube-apiserver`
+
+- Serves as the **front end** of the Kubernetes control plane.
+- Exposes the **Kubernetes API**.
+- Designed to **scale horizontally** by running multiple instances and balancing traffic.
+
+### 🧠 `controller-manager`
+
+- Watches the state of the cluster and makes changes to bring the actual state to the desired state.
+- Includes:
+  - **Node Controller** – manages node status.
+  - **Replication Controller** – ensures the correct number of pod replicas.
+  - **Endpoints Controller** – manages endpoint objects.
+  - **Service Account & Token Controller** – manages access credentials.
+
+### 🧭 `kube-scheduler`
+
+- Assigns newly created Pods to nodes.
+- Determines pod placement based on resource requirements, policies, and affinity rules.
+
+### 🗃️ `etcd`
+
+- A **highly-available**, consistent **key-value store** used as the **backing store** for all cluster data.
+- Essential for cluster state management.
+- Requires a [backup plan](https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/#backing-up-an-etcd-cluster) to avoid data loss.
+
+---
+
+## 👷 Worker Node Components
+
+Worker Nodes are where **application containers** are deployed and run.
+
+### 🧑‍🏭 `kubelet`
+
+- An agent running on every worker node.
+- Ensures that containers are running in their respective Pods as defined in the PodSpecs.
+
+### 📦 Pods
+
+- The **smallest deployable unit** in Kubernetes.
+- Each Pod has a **unique IP address**.
+- Can contain **one or more containers**.
+- Pods are connected via **Services**, which abstract dynamic Pod IPs.
+
+### 🔌 Services
+
+Enable communication across Pods and external clients:
+
+- **Internal Service**: For communication within the cluster.
+- **External Service**: Exposes Pods to the outside world.
+
+Services support **load balancing** across multiple Pods.
+
+### ⚙️ ConfigMaps
+
+- Used to store **non-confidential configuration data**.
+- Allows separating configuration from application code.
+
+### 🔐 Secrets
+
+- Used to store **sensitive information** (passwords, tokens, etc.).
+- Data is stored in **base64-encoded** format.
+
+### 💾 Volumes
+
+- Provide **persistent storage** for Pods.
+- Ensures data survives Pod restarts or failures.
+
+Types of storage:
+- **Local Volumes**: Inside the cluster.
+- **Remote Volumes**: Outside the cluster (e.g., cloud storage).
+
+### 📊 Deployment
+
+- Describes the **desired state** of Pods and ReplicaSets.
+- Ensures the specified number of pod replicas are running at all times.
+- Useful for rolling updates, rollbacks, and scaling.
+
+---
+
+## 🔀 `kube-proxy` (Optional Component)
+
+- A **network proxy** that runs on each node.
+- Implements part of the Kubernetes **Service** abstraction.
+- Handles routing and **load balancing** for network traffic to Pods.
+
+---
+
+## ✅ Summary
+
+| Component        | Purpose                                               |
+|------------------|--------------------------------------------------------|
+| kube-apiserver   | Frontend to Kubernetes API                            |
+| controller-manager | Monitors and maintains desired state of the cluster |
+| kube-scheduler   | Assigns Pods to nodes                                 |
+| etcd             | Persistent, consistent cluster data store             |
+| kubelet          | Ensures containers run as expected on a node          |
+| Pods             | Smallest deployable unit with container(s)            |
+| Services         | Abstraction for Pod communication & load balancing    |
+| ConfigMap        | Stores configuration data                             |
+| Secrets          | Stores sensitive information                          |
+| Volumes          | Provides persistent storage                           |
+| Deployment       | Manages desired state and replicas                    |
+| kube-proxy       | Network traffic routing                               |
+
