@@ -1,205 +1,260 @@
-# Product Service (Port: 8080)
+# Docker
 
-## Overview
-This is a Spring Boot project that provides product-related functionalities. It is configured as a Eureka client for service discovery and uses a centralized config server for configuration management.
+Here I am containerizing the project with the help of Docker. That is we will bundle all the (libs, config, Apps, and OS) and any new user can use the bundle (with all the required versions) and run the application.
 
-## Dependencies
-- Spring Web
-- Spring Data JPA
-- MySQL Driver
-- Lombok
-- Cloud Bootstrap
-- Spring Boot DevTools
-- Eureka Client
-- Config Client
+## Docker Basics
 
-## Folder Structure
-```
-- controller
-- services
-- repository
-- entity
-- model
-- exceptions
+- **Docker Image**: Contains (libs, config, Apps, and OS) and is stored in the Docker registry.
+- **Container**: A running instance of a Docker image.
+- **Layers**: Each configuration, library, etc., is a separate layer with a unique ID.
+
+## Commands
+
+### Pull and Run Images
+```sh
+docker pull <name>
+docker pull <name:version>  # Example: docker pull redis:6.7.2
 ```
 
-## Configuration
-Update `application.properties` to `application.yaml`.
-
-## Flow
-1. **Model**
-   - `ProductRequest`: Handles incoming product details.
-   - `ProductResponse`: Returns product details from the controller.
-   - `ErrorResponse`: Standard error response structure (errorMessage, errorCode).
-2. **Repository**
-   - `ProductRepository`: Extends `JpaRepository` for database operations.
-3. **Entity**
-   - `Product`: Represents the database entity for products.
-4. **Services**
-   - `ProductService`: Interface defining product operations.
-   - `ProductServiceImpl`: Implements `ProductService` logic.
-5. **Exceptions**
-   - `ProductServiceCustomException`: Extends `RuntimeException`.
-   - `RestResponseEntityExceptionHandler`: Handles global exceptions using `@ControllerAdvice`.
-
-## Controller Example
-```java
-@PostMapping
-public ResponseEntity<Long> addProduct(@RequestBody ProductRequest productRequest) {
-    long productId = productService.addProduct(productRequest);
-    return new ResponseEntity<>(productId, HttpStatus.CREATED);
-}
+### Listing and Managing Images
+```sh
+docker images  # List all images
+docker rmi <IMAGE_ID/NAME>  # Remove an image
 ```
 
-## Exception Handling
-```java
-public class ProductServiceCustomException extends RuntimeException {
-    private String errorCode;
-    public ProductServiceCustomException(String message, String errorCode) {
-        super(message);
-        this.errorCode = errorCode;
-    }
-}
+### Running Containers
+```sh
+docker run --name <CONTAINER_NAME> <IMAGE_NAME:latest/IMAGE_ID>
+docker run --name <CONTAINER_NAME> -p <HOST_PORT:CONT_PORT> -d <IMAGE_NAME:latest/IMAGE_ID>
 ```
 
-## Controller Advice Example
-```java
-@ControllerAdvice
-public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionHandler {
-    @ExceptionHandler(ProductServiceCustomException.class)
-    public ResponseEntity<ErrorResponse> handleProductServiceException(ProductServiceCustomException exception) {
-        return new ResponseEntity<>(new ErrorResponse(exception.getMessage(),exception.getErrorCode()), HttpStatus.NOT_FOUND);
-    }
-}
+### Managing Containers
+```sh
+docker ps  # List running containers
+docker ps -a  # List all containers
+docker stop <CONTAINER_ID/NAME>  # Stop a container
+docker rm <CONTAINER_ID/NAME>  # Remove a container
+docker logs <CONTAINER_ID>  # View logs of a container
+docker exec -it <CONTAINER_ID/NAME> /bin/sh  # Access container shell
 ```
 
-# Service Registry (Eureka Server) (Port: 8761)
-This is a separate Spring Boot project configured as a Eureka Server.
+### System Cleanup
+```sh
+docker system prune -a  # Remove all unused containers, images, and networks
+```
 
-## Dependencies
-- Cloud Bootstrap
-- Eureka Server
+## Inventrax Containerization
 
-## Configuration (`application.yaml`)
+### Service Registry
+
+1. Build the JAR file:
+```sh
+mvnw clean install
+```
+2. Create a `Dockerfile` in the service registry folder:
+```dockerfile
+FROM openjdk:21
+ARG JAR_FILE=target/*.jar
+COPY ${JAR_FILE} serviceregistry.jar
+EXPOSE 8761
+ENTRYPOINT ["java", "-jar", "/serviceregistry.jar"]
+```
+3. Build and run the Docker image:
+```sh
+docker build -t paragshah07/serviceregistry:0.0.1 .
+docker run --name serviceregistry -p 8761:8761 -d <IMAGE_ID>
+```
+
+### Config Server & Cloud Gateway
+
+Follow similar steps as the service registry.
+Run with environment variables:
+```sh
+docker run --name configserver -p 9296:9296 -e EUREKA_SERVER_ADDRESS=http://host.docker.internal:8761/eureka -d <IMAGE_ID>
+docker run --name cloudgateway -p 9090:9090 -e EUREKA_SERVER_ADDRESS=http://host.docker.internal:8761/eureka -e CONFIG_SERVER_URL=host.docker.internal -d <IMAGE_ID>
+```
+
+### Order, Product & Payment Services
+
+```sh
+docker run --name orderservice -p 8082:8082 -e EUREKA_SERVER_ADDRESS=http://host.docker.internal:8761/eureka -e CONFIG_SERVER_URL=host.docker.internal -e DB_HOST=host.docker.internal -d <IMAGE_ID>
+docker run --name productservice -p 8080:8080 -e EUREKA_SERVER_ADDRESS=http://host.docker.internal:8761/eureka -e CONFIG_SERVER_URL=host.docker.internal -e DB_HOST=host.docker.internal -d <IMAGE_ID>
+docker run --name paymentservice -p 8081:8081 -e EUREKA_SERVER_ADDRESS=http://host.docker.internal:8761/eureka -e CONFIG_SERVER_URL=host.docker.internal -e DB_HOST=host.docker.internal -d <IMAGE_ID>
+```
+
+## Docker Compose
+
+### Creating a `docker-compose.yml` file
 ```yaml
-spring:
-  application:
-    name: ServiceRegistry
-server:
-  port: 8761
-eureka:
-  instance:
-    hostname: localhost
-  client:
-    register-with-eureka: false
-    fetch-registry: false
+version: '3'
+services:
+  serviceregistry:
+    image: 'paragshah07/serviceregistry:0.0.1'
+    container_name: serviceregistry
+    ports:
+      - '8761:8761'
+  configserver:
+    image: 'paragshah07/configserver:0.0.1'
+    container_name: configserver
+    ports:
+      - '9296:9296'
+    environment:
+      - EUREKA_SERVER_ADDRESS=http://host.docker.internal:8761/eureka
+    depends_on:
+      - serviceregistry
+  cloudgateway:
+    image: 'paragshah07/cloudgateway:0.0.1'
+    container_name: cloudgateway
+    ports:
+      - '9090:9090'
+    environment:
+      - EUREKA_SERVER_ADDRESS=http://host.docker.internal:8761/eureka
+      - CONFIG_SERVER_URL=host.docker.internal
+    depends_on:
+      - configserver
 ```
 
-## Application Class
-```java
-@SpringBootApplication
-@EnableEurekaServer
-public class ServiceRegistryApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(ServiceRegistryApplication.class, args);
-    }
-}
+### Running and Cleaning Up Containers
+```sh
+docker-compose -f docker-compose.yml up -d  # Start services
+docker-compose -f docker-compose.yml down  # Remove all services
 ```
 
-# Order Service (Port: 8082)
-
-## Overview
-This service handles order-related functionalities and interacts with Product and Payment services.
-
-## Dependencies
-- Spring Web
-- Spring Data JPA
-- MySQL Driver
-- Lombok
-- Cloud Bootstrap
-- Spring Boot DevTools
-- Eureka Client
-- Config Client
-
-## Folder Structure
-```
-- controller
-- services
-- repository
-- entity
-- model
-- exceptions
-```
-
-## Controller Example
-```java
-@PostMapping("/placeOrder")
-public ResponseEntity<Long> placeOrder(@RequestBody OrderRequest orderRequest) {
-    long orderId = orderService.placeOrder(orderRequest);
-    return new ResponseEntity<>(orderId, HttpStatus.OK);
-}
-```
-
-## Service Implementation Example
-```java
-@Override
-public long placeOrder(OrderRequest orderRequest) {
-    Order order = new Order(orderRequest.getProductId(), orderRequest.getQuantity(), Instant.now(), "CREATED", orderRequest.getTotalAmount());
-    order = orderRepository.save(order);
-    return order.getId();
-}
-```
-
-# Config Server (Port: 9296)
-
-## Overview
-The Config Server fetches configuration from a GitHub repository and provides it to microservices dynamically.
-
-## Dependencies
-- Config Server
-- Eureka Client
-
-## Application Class
-```java
-@SpringBootApplication
-@EnableConfigServer
-public class ConfigServerApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(ConfigServerApplication.class, args);
-    }
-}
-```
-
-## Configuration (`application.yaml`)
+### Docker Compose with Health Check
 ```yaml
-server:
-  port: 9296
-spring:
-  application:
-    name: CONFIG-SERVER
-  cloud:
-    config:
-      server:
-        git:
-          uri: https://github.com/ParagShah97/InventraXConfigData
-          clone-on-start: true
-eureka:
-  instance:
-    prefer-ip-address: true
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: ${EUREKA_SERVER_ADDRESS:http://localhost:8761/eureka}
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://configserver:9296/actuator/health"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
 ```
 
-# Notes
-- The Eureka Client configuration is common for both Product and Order services.
-- The Config Server eliminates redundant configuration copies by centrally managing properties.
-- All services should have the following configuration to integrate with the Config Server:
-```yaml
-spring:
-  config:
-    import: configserver:http://localhost:9296
+This README provides the necessary steps for containerizing and running services efficiently using Docker and Docker Compose.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+# Kubernetes Overview
+
+Kubernetes (K8s) is an open-source **container orchestration platform** that automates the **deployment**, **scaling**, and **management** of containerized applications. It helps manage clusters of hosts running containers in a highly efficient, resilient, and scalable manner.
+
+---
+
+## 🧱 Kubernetes Architecture
+
+Kubernetes architecture follows a **Master-Worker** model:
+
 ```
-- Ensure that the Git repository mentioned in the `application.yaml` file contains valid configuration files for different services.
+Master Node(s) <-----> Worker Node(s)
+```
+
+---
+
+## ⚙️ Master Node Components
+
+The **Master Node** is the control plane of the cluster and is responsible for managing the state of the cluster.
+
+### 🔗 `kube-apiserver`
+
+- Serves as the **front end** of the Kubernetes control plane.
+- Exposes the **Kubernetes API**.
+- Designed to **scale horizontally** by running multiple instances and balancing traffic.
+
+### 🧠 `controller-manager`
+
+- Watches the state of the cluster and makes changes to bring the actual state to the desired state.
+- Includes:
+  - **Node Controller** – manages node status.
+  - **Replication Controller** – ensures the correct number of pod replicas.
+  - **Endpoints Controller** – manages endpoint objects.
+  - **Service Account & Token Controller** – manages access credentials.
+
+### 🧭 `kube-scheduler`
+
+- Assigns newly created Pods to nodes.
+- Determines pod placement based on resource requirements, policies, and affinity rules.
+
+### 🗃️ `etcd`
+
+- A **highly-available**, consistent **key-value store** used as the **backing store** for all cluster data.
+- Essential for cluster state management.
+- Requires a [backup plan](https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/#backing-up-an-etcd-cluster) to avoid data loss.
+
+---
+
+## 👷 Worker Node Components
+
+Worker Nodes are where **application containers** are deployed and run.
+
+### 🧑‍🏭 `kubelet`
+
+- An agent running on every worker node.
+- Ensures that containers are running in their respective Pods as defined in the PodSpecs.
+
+### 📦 Pods
+
+- The **smallest deployable unit** in Kubernetes.
+- Each Pod has a **unique IP address**.
+- Can contain **one or more containers**.
+- Pods are connected via **Services**, which abstract dynamic Pod IPs.
+
+### 🔌 Services
+
+Enable communication across Pods and external clients:
+
+- **Internal Service**: For communication within the cluster.
+- **External Service**: Exposes Pods to the outside world.
+
+Services support **load balancing** across multiple Pods.
+
+### ⚙️ ConfigMaps
+
+- Used to store **non-confidential configuration data**.
+- Allows separating configuration from application code.
+
+### 🔐 Secrets
+
+- Used to store **sensitive information** (passwords, tokens, etc.).
+- Data is stored in **base64-encoded** format.
+
+### 💾 Volumes
+
+- Provide **persistent storage** for Pods.
+- Ensures data survives Pod restarts or failures.
+
+Types of storage:
+- **Local Volumes**: Inside the cluster.
+- **Remote Volumes**: Outside the cluster (e.g., cloud storage).
+
+### 📊 Deployment
+
+- Describes the **desired state** of Pods and ReplicaSets.
+- Ensures the specified number of pod replicas are running at all times.
+- Useful for rolling updates, rollbacks, and scaling.
+
+---
+
+## 🔀 `kube-proxy` (Optional Component)
+
+- A **network proxy** that runs on each node.
+- Implements part of the Kubernetes **Service** abstraction.
+- Handles routing and **load balancing** for network traffic to Pods.
+
+---
+
+## ✅ Summary
+
+| Component        | Purpose                                               |
+|------------------|--------------------------------------------------------|
+| kube-apiserver   | Frontend to Kubernetes API                            |
+| controller-manager | Monitors and maintains desired state of the cluster |
+| kube-scheduler   | Assigns Pods to nodes                                 |
+| etcd             | Persistent, consistent cluster data store             |
+| kubelet          | Ensures containers run as expected on a node          |
+| Pods             | Smallest deployable unit with container(s)            |
+| Services         | Abstraction for Pod communication & load balancing    |
+| ConfigMap        | Stores configuration data                             |
+| Secrets          | Stores sensitive information                          |
+| Volumes          | Provides persistent storage                           |
+| Deployment       | Manages desired state and replicas                    |
+| kube-proxy       | Network traffic routing                               |
+
